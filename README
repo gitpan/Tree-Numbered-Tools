@@ -1,0 +1,9 @@
+# Required modules:           Tree::Numbered
+# Highly recommended modules: DBI, DBD::mysql and/or DBD::Pg
+
+# Install as usual:
+
+perl Makefile.PL
+make
+make test
+make install
