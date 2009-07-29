@@ -1,12 +1,36 @@
 package Tree::Numbered::Tools;
 
+use 5.008009;
 use strict;
+use warnings;
+
 use Tree::Numbered;
 use Text::ParseWords;
 use Carp; # generate better errors with more context
 
-our $VERSION = '1.01';
+require Exporter;
+
 our @ISA = qw(Tree::Numbered);
+
+# Items to export into callers namespace by default. Note: do not export
+# names by default without a very good reason. Use EXPORT_OK instead.
+# Do not simply export all your public functions/methods/constants.
+
+# This allows declaration	use Tree::Numbered::Tools ':all';
+# If you do not need this, moving things directly into @EXPORT or @EXPORT_OK
+# will save memory.
+our %EXPORT_TAGS = ( 'all' => [ qw(
+	
+) ] );
+
+our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } );
+
+our @EXPORT = qw(
+	
+);
+
+our $VERSION = '1.02';
+
 
 # - Generate a tree object from different sources: database table, text file, SQL statement, Perl array.
 # - Dump a tree object to one of these sources.
@@ -67,7 +91,7 @@ Example 3: Using a database table as a source, use the SQL 'AS' statement for ea
 
   use Tree::Numbered::Tools;
 
-  my $sql = 'SELECT serial AS "Serial", parent AS "Parent", name AS "Name", url AS "URL" FROM mytable ORDER BY Serial';
+  my $sql = 'SELECT serial, parent AS "Parent", name AS "Name", url AS "URL" FROM mytable ORDER BY serial';
   my $tree = Tree::Numbered::Tools->readSQL(
               dbh              => $dbh,
               sql              => $sql,
@@ -171,7 +195,7 @@ Methods to convert from one source format to another:
   convertDB2Array()
   convertDB2SQL()
 
-Using convertX2Y() is practically the same as readX() followed by outputY().
+Using convertX2Y() is practically the same as calling readX() followed by outputY().
 
 Other Methods:
   getColumnNames - see NOTES ABOUT FIELDS AND COLUMNS
@@ -191,6 +215,7 @@ Reads $filename, returns a tree object.
 $use_column_names is a boolean, if set (default), assumes that the first (non-comment, non-blank) line contains column names.
 
 =cut
+
 
 sub readFile {
   my $self = shift;
@@ -281,6 +306,21 @@ sub readFile {
     # Up one or more levels ?
     elsif ($current_indent < $previous_indent) {
       # We may go up one or more levels at a time
+
+      # BUGFIX - BEGIN
+      # Bug in Tree-Numbered-Tools-1.01:
+      # Warning message "Use of uninitialized value in subtraction (-)" when nodes at the first line or lines use a higher indent level than following lines.
+      # The warning message is caused by $current_indent having a undefined value.
+      # The solution is to set $current_indent to 0 and show a customized warning message.
+      # (NOT reported in bug ticket http://rt.cpan.org/Public/Bug/Display.html?id=48068)
+      # Bugfix added in 1.02 (2009-07-25).
+      if (!defined $level_indent{$current_indent})
+        {
+          $level_indent{$current_indent} = 0;
+          my $warn_lines = $i ? "'$lines[$i-1]'\n'$lines[$i]'\n'$lines[$i+1]'\n" : "'$lines[0]'\n'$lines[1]'\n'$lines[2]'\n";
+          warn "WARNING: One or more of the following line seems to be incorrectly indented:\n$warn_lines";
+        }
+      # BUGFIX - END
       my $up_levels = $level_indent{$previous_indent} - $level_indent{$current_indent};
       $current_level = $current_level - $up_levels;
       foreach (1..$up_levels) {
@@ -357,10 +397,9 @@ sub readArray {
 
   my @column_names = ();
 
-  # Get second element if we are using first element as column names
+  # Shift off first element (column names) from array if we are using column names.
   if ($use_column_names) {
     @column_names = @first_element;
-    # Shift off first element (column names) from array
     shift @array;
   }
   # use default column names ('serial', 'parent', 'Value', 'Value2', 'Value3', etc) if no column names were given
@@ -370,6 +409,33 @@ sub readArray {
       $column_names[$i] = 'Value'.($i-1);
     }
   }
+
+  # BUGFIX BEGIN
+  # First column's name must be 'serial' (lower case).
+  croak "The first column's name must be 'serial' (lower case)" if ($column_names[0] ne 'serial');
+  # BUGFIX END
+
+  # BUGFIX - BEGIN
+  # Bug in Tree-Numbered-Tools-1.01:
+  # http://rt.cpan.org/Public/Bug/Display.html?id=48068
+  # Bugfix added in 1.02 (2009-07-24), suggested by Daniel Higgins:
+  # Check column 'serial' and 'parent', both must be numeric integer values.
+  # Then sort array numerically by 'parent' column to avoid append() error later, bug occurs with unsorted arrays.
+  # Check for valid integers.
+  for (my $i = 0; $i < @array; $i++) 
+    {
+      # Get element and it fields
+      my @element_fields = @{$array[$i]};
+      # Get current node and parent node numbers
+      my $serial = $element_fields[0];
+      my $parent = $element_fields[1];
+      croak "The 'serial' element '$serial' in row $i isn't an integer'" if (!_isInteger($serial));
+      croak "The 'parent' element '$parent' in row $i isn't an integer'" if (!_isInteger($parent));
+    }
+  # Sort array.
+  @array = sort {
+    ($a->[1] <=> $b->[1]) } @array;
+  # BUGFIX - END
 
   # Get root node
   my @root_node = @{$array[0]};
@@ -403,10 +469,23 @@ sub readArray {
       $args_hash{$column_name} = $element_fields[$j++];
     }
 
-    # Add current node to its parent
-    my $node = $self->getSubTree($parent);
-    $node = $node->append(%args_hash);
+    # BUGFIX - BEGIN
+    # Bug in Tree-Numbered-Tools-1.01:
+    # http://rt.cpan.org/Public/Bug/Display.html?id=48068
+    # Bugfix added in 1.02 (2009-07-24), suggested by Daniel Higgins:
+    our $parentnode=undef;
+    $self->allProcess( sub {
+                         my ($self,$parent) = @_;
+                         our $parentnode;
+                         $_ = $self->getserial ;
+                         $parentnode = $self if $_ == $parent ;
+                       },
+                       $parent );
 
+    # Add current node to its parent
+    my $node = $parentnode ;
+    $node = $node->append(%args_hash);
+    # BUGFIX - END
   }
 
   # Set object properties
@@ -776,8 +855,10 @@ print $tree->outputArray();
 COMMENT
 
   # Insert program header
-  my $perl_binary = $^X;
-  my $header = "#!$perl_binary -w\n";
+  ###  my $perl_binary = $^X; # BUGFIX: Normally shows just 'perl' instead of '/usr/bin/perl'
+  my $perl_binary = `which perl`;
+  chomp $perl_binary;
+  my $header = '#!' . $perl_binary  . " -w\n";
   $header .= "use strict;\n";
   $header .= "use $package;\n";
 
@@ -804,7 +885,7 @@ The $dbs argument is optional, sets the database server type, defaults to 'mysql
 Currently supported database server types are MySQL and PostgreSQL.
 Due to inconsistent naming convention for PostgreSQL ($dbh->{Driver}->{Name} returns 'Pg' while $dbh->get_info( SQL_DBMS_NAME ) returns 'PostgreSQL'), valid 'dbs' values when using PostgreSQL are: 'postgres', 'PostgreSQL', 'PgSQL', and 'Pg'.
 The 'dbs' argument is case-insensitive.
-The generated SQL code has been tested on MySQL 3.23.54 and PostgreSQL 7.4.1, but may need modification for use with other database servers/versions.
+The generated SQL code has been tested with MySQL 5.0.77 and PostgreSQL 8.2.13 on FreeBSD 7.2, but may need modification for use with other database servers/versions/platforms.
 
 The $drop argument is optional, if true (false by default), inserts a DROP TABLE statement before the CREATE TABLE statement.
 If false, the DROP TABLE statement will be left outcommented.
@@ -909,7 +990,8 @@ sub outputDB {
   }
   # Execute DROP TABLE, if $drop
   if ($drop) {
-    $sql = $drop_table_ref->[0];
+###    $sql = $drop_table_ref->[0];
+    $sql = $drop_table_ref->[1];
     if ($sql) {
       $dbh->do($sql) or croak $dbh->errstr;
     }
@@ -953,7 +1035,8 @@ Calls readFile() followed by outputArray().
 
 sub convertFile2Array {
   my $self = shift;
-  my $tree = $self->readFile(@_);
+###  my $tree = $self->readFile(@_);              # BUG: Using an existing tree object, the tree nodes are not replaced.
+  my $tree = Tree::Numbered::Tools->readFile(@_); # SOLUTION: Always use a new tree object.
   return $tree->outputArray();
 }
 
@@ -975,7 +1058,8 @@ Calls readFile() followed by outputSQL().
 
 sub convertFile2SQL {
   my $self = shift;
-  my $tree = $self->readFile(@_);
+###  my $tree = $self->readFile(@_);              # BUG: Using an existing tree object, the tree nodes are not replaced.
+  my $tree = Tree::Numbered::Tools->readFile(@_); # SOLUTION: Always use a new tree object.
   return $tree->outputSQL(@_);
 }
 
@@ -997,7 +1081,8 @@ Calls readFile() followed by outputDB().
 
 sub convertFile2DB {
   my $self = shift;
-  my $tree = $self->readFile(@_);
+###  my $tree = $self->readFile(@_);              # BUG: Using an existing tree object, the tree nodes are not replaced.
+  my $tree = Tree::Numbered::Tools->readFile(@_); # SOLUTION: Always use a new tree object.
   return $tree->outputDB(@_);
 }
 
@@ -1019,7 +1104,8 @@ Calls readArray() followed by outputFile().
 
 sub convertArray2File {
   my $self = shift;
-  my $tree = $self->readArray(@_);
+###  my $tree = $self->readArray(@_);              # BUG: Using an existing tree object, the tree nodes are not replaced.
+  my $tree = Tree::Numbered::Tools->readArray(@_); # SOLUTION: Always use a new tree object.
   return $tree->outputFile(@_);
 }
 
@@ -1041,7 +1127,8 @@ Calls readArray() followed by outputSQL().
 
 sub convertArray2SQL {
   my $self = shift;
-  my $tree = $self->readArray(@_);
+###  my $tree = $self->readArray(@_);              # BUG: Using an existing tree object, the tree nodes are not replaced.
+  my $tree = Tree::Numbered::Tools->readArray(@_); # SOLUTION: Always use a new tree object.
   return $tree->outputSQL(@_);
 }
 
@@ -1063,7 +1150,8 @@ Calls readArray() followed by outputDB().
 
 sub convertArray2DB {
   my $self = shift;
-  my $tree = $self->readArray(@_);
+###  my $tree = $self->readArray(@_);              # BUG: Using an existing tree object, the tree nodes are not replaced.
+  my $tree = Tree::Numbered::Tools->readArray(@_); # SOLUTION: Always use a new tree object.
   return $tree->outputDB(@_);
 }
 
@@ -1085,7 +1173,8 @@ Calls readSQL() followed by outputFile().
 
 sub convertSQL2File {
   my $self = shift;
-  my $tree = $self->readSQL(@_);
+###  my $tree = $self->readSQL(@_);              # BUG: Using an existing tree object, the tree nodes are not replaced.
+  my $tree = Tree::Numbered::Tools->readSQL(@_); # SOLUTION: Always use a new tree object.
   return $tree->outputFile(@_);
 }
 
@@ -1104,7 +1193,8 @@ Calls readSQL() followed by outputArray().
 
 sub convertSQL2Array {
   my $self = shift;
-  my $tree = $self->readSQL(@_);
+###  my $tree = $self->readSQL(@_);              # BUG: Using an existing tree object, the tree nodes are not replaced.
+  my $tree = Tree::Numbered::Tools->readSQL(@_); # SOLUTION: Always use a new tree object.
   return $tree->outputArray(@_);
 }
 
@@ -1141,7 +1231,8 @@ sub convertSQL2DB {
 		 @_,         # argument pair list goes here
 		);
   $args_db{dbh} = $args_db{dbh_dest};
-  my $tree = $self->readSQL(%args_sql);
+###  my $tree = $self->readSQL(%args_sql);              # BUG: Using an existing tree object, the tree nodes are not replaced.
+  my $tree = Tree::Numbered::Tools->readSQL(%args_sql); # SOLUTION: Always use a new tree object.
   return $tree->outputDB(%args_db);
 }
 
@@ -1163,7 +1254,8 @@ Calls readDB() followed by outputFile().
 
 sub convertDB2File {
   my $self = shift;
-  my $tree = $self->readDB(@_);
+###  my $tree = $self->readDB(@_);              # BUG: Using an existing tree object, the tree nodes are not replaced.
+  my $tree = Tree::Numbered::Tools->readDB(@_); # SOLUTION: Always use a new tree object.
   return $tree->outputFile(@_);
 }
 
@@ -1182,7 +1274,8 @@ Calls readDB() followed by outputArray().
 
 sub convertDB2Array {
   my $self = shift;
-  my $tree = $self->readDB(@_);
+###  my $tree = $self->readDB(@_);              # BUG: Using an existing tree object, the tree nodes are not replaced.
+  my $tree = Tree::Numbered::Tools->readDB(@_); # SOLUTION: Always use a new tree object.
   return $tree->outputArray(@_);
 }
 
@@ -1219,7 +1312,8 @@ sub convertDB2SQL {
 		  @_,         # argument pair list goes here
 		 );
   $args_sql{table} = $args_db{table_dest};
-  my $tree = $self->readDB(%args_db);
+###  my $tree = $self->readDB(%args_db);              # BUG: Using an existing tree object, the tree nodes are not replaced.
+  my $tree = Tree::Numbered::Tools->readDB(%args_db); # SOLUTION: Always use a new tree object.
   return $tree->outputSQL(%args_sql);
 }
 
@@ -1234,7 +1328,7 @@ sub convertDB2SQL {
     Using an SQL statement - the SQL field names
     Using a database table - the table column names
 
-  Using this method on a tree created using with use_column_names set to false returns undef;
+  Using this method on a tree created using with use_column_names set to 0 returns the default column names: 'Value', 'Value2', 'Value3', etc.
 
 =cut
 
@@ -1294,7 +1388,7 @@ sub _getMaxColumnsFile {
   foreach my $line (@lines) {
     my @columns = &parse_line('\s+', 0, $line);
     $max_cols = scalar(@columns) if (scalar(@columns) > $max_cols);
-  } 
+  }
   return $max_cols;
 }
 
@@ -1325,6 +1419,11 @@ sub _indented {
   my $s = shift;
   $s =~ s/^(\s*).*/$1/;
   return length($s);
+}
+
+sub _isInteger {
+  my $string = shift;
+  return ($string =~ /^[+-]?\d+$/) ? 1 : 0;
 }
 
 # Quotes SQL aliases (the word that follows 'AS' in an SQL statement).
@@ -1399,7 +1498,7 @@ sub _sql_statements {
   my $drop = $args{drop};
 
   my @sql_header = ();
-  my @drop_table = ();
+  my @drop_index_and_table = ();
   my @create_table = ();
   my @insert_into = ();
   my @create_index = ();
@@ -1420,6 +1519,8 @@ sub _sql_statements {
 
   # Variables for the SQL statements 
   my $sql_header             = '';
+  my $example_output_file    = 'insert-into.sql';
+  my $drop_index             = '';
   my $drop_table             = '';
   my $create_table           = '';
   my $create_table_last_line = '';
@@ -1460,7 +1561,8 @@ sub _sql_statements {
       # Quote character for MySQL
       $qc = '`';
       # Command line for MySQL
-      $command_line = "mysql -u root -pmysqlpassword mysqldatabase < tree.sql";
+      $example_output_file = 'insert-into-mysql.sql';
+      $command_line = "mysql -u root -pmysqlpassword test < $example_output_file";
       # Push dummy empty string comments
       push @comments, '', '';
       last SWITCH;
@@ -1469,7 +1571,7 @@ sub _sql_statements {
     /^postgres$|^PostgreSQL$|^pgsql$|^pg$/i         && do {
       # SQL header for PostgresSQL
       $sql_header   = 
-'SET SESSION AUTHORIZATION \'postgres\';';
+'SET SESSION AUTHORIZATION \'pgsql\';';
       push @sql_header, $sql_header;
       $sql_header   = 
 'SET search_path = "public", pg_catalog;';
@@ -1478,8 +1580,10 @@ sub _sql_statements {
 '-- Definition';
       push @comments, $comments;
 
+      # DROP INDEX statement for PostgresSQL (outcommented if $drop is not set)
+      $drop_index = 'DROP INDEX IF EXISTS "'. $table .'_serial_index"'.";";
       # DROP TABLE statement for PostgresSQL (outcommented if $drop is not set)
-      $drop_table = 'DROP TABLE "public"."'. $table .'"'.";";
+      $drop_table = 'DROP TABLE IF EXISTS "'. $table .'"'.";";
       $sql_comment = "--";
       # CREATE TABLE statement for PostgresSQL ('serial' and 'parent' columns only)
       $create_table = 
@@ -1502,7 +1606,8 @@ sub _sql_statements {
       # Quote character for PostgresSQL
       $qc = '"';
       # Command line for PostgresSQL
-      $command_line = "psql -q -U postgres -d postgresdatabase -f tree.sql";
+      $example_output_file = 'insert-into-pgsql.sql';
+      $command_line = "psql -q -U pgsql -d test -f $example_output_file";
       last SWITCH;
     };
     # DEFAULT
@@ -1510,8 +1615,10 @@ sub _sql_statements {
   }
 
   # DROP TABLE statement (outcommented if $drop is not set)
+  $drop_index = $sql_comment.' '.$drop_index if !$drop;
+  push @drop_index_and_table, $drop_index;
   $drop_table = $sql_comment.' '.$drop_table if !$drop;
-  push @drop_table, $drop_table;
+  push @drop_index_and_table, $drop_table;
 
   # CREATE TABLE statement
 
@@ -1585,7 +1692,8 @@ sub _sql_statements {
       # Set value to empty string if undefined
       $value = '' if !$value;
       # Escape possible quote characters in values
-      $value =~ s/\'/\\\'/g;
+      ### $value =~ s/\'/\\\'/g; # BUGFIX: double quote instead of escape quotes to avoid warning message on PgSQL 8.2.
+      $value =~ s/\'/\'\'/g; # BUGFIX: double quote instead of escape quotes to avoid warning message on PgSQL 8.2.
       # Add quotes
       $value_code .= "'$value'";
       # Add comma for all but last value
@@ -1612,15 +1720,16 @@ $sql_comment SQL statements for $dbs generated by $package$method.
 $sql_comment For details, check the $package documentation.
 $sql_comment $uncomment_drop
 $sql_comment Usage of this output:
-$sql_comment Redirect this output to a file called for example 'tree.sql'.
-$sql_comment Then run from the command line:
+$sql_comment Redirect this output to a file called, for example, '$example_output_file':
+$sql_comment $0 @ARGV > $example_output_file
+$sql_comment Then run from the command line (assumes that the database 'test' already exists):
 $sql_comment $command_line
 $sql_comment
 COMMENT
     unshift @comments, $comments;
 
   # Return a reference to all array references.
-  my @list = (\@sql_header, \@drop_table, \@create_table, \@insert_into, \@create_index, \@comments);
+  my @list = (\@sql_header, \@drop_index_and_table, \@create_table, \@insert_into, \@create_index, \@comments);
   return \@list;
 }
 
@@ -1658,7 +1767,7 @@ Johan Kuuse, E<lt>johan@kuu.seE<gt>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright 2004 by Johan Kuuse
+Copyright 2004-2009 by Johan Kuuse
 
 This module is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.

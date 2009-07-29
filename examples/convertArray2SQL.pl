@@ -1,10 +1,41 @@
-#!/usr/bin/perl
+#!/usr/bin/perl -w
 use strict;
 use Tree::Numbered::Tools;
 
-# Print a tree structure in the text file format.
-# This example uses a tree with various fields per node.
-# The field names are given using the column names from a text file.
+# Demo for the convertArray2SQL() method, converts an array into SQL statements (MySQL or PostgreSQL syntax).
+
+# Help message
+sub usage
+  {
+    print "\n";
+    print "Usage:\n";
+    print "$0 mysql\n";
+    print "or\n";
+    print "$0 pgsql\n";
+    print "\n";
+    exit 1;
+  }
+
+# Check for command line argument.
+if (!$ARGV[0])
+  {
+    usage();
+  }
+
+my $dbs = $ARGV[0];
+SWITCH: for ($dbs) {
+  # MySQL
+  /^mysql$/i        && do {
+    last SWITCH;
+  };
+  # PgSQL
+  /^postgres$|^PostgreSQL$|^pgsql$|^pg$/i         && do {
+    last SWITCH;
+  };
+  # DEFAULT
+  print STDERR "Database server type '$dbs' is not supported.";
+  usage;
+}
 
 # The source
 my $arrayref = [
@@ -34,8 +65,8 @@ my $arrayref = [
 	       ];
 my $use_column_names = 1;
 my $table = 'treetest';
-my $dbs = 'mysql';
 my $drop = 1;
+
 # The output
 print Tree::Numbered::Tools->convertArray2SQL(
 					      arrayref         => $arrayref,

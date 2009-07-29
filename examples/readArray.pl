@@ -1,11 +1,11 @@
-#!/usr/bin/perl
+#!/usr/bin/perl -w
 use strict;
 use Tree::Numbered::Tools;
 
 # Demo for the readArray() method.
 
 my $arrayref = [
-		[qw(serial parent name url)],
+		[qw(serial parent Name URL)],
 		[1, 0, 'ROOT', 'ROOT'],
 		[2, 1, 'File', 'file.pl'],
 		[3, 2, 'New', 'file-new.pl'],
@@ -30,21 +30,25 @@ my $arrayref = [
 		[22, 16, 'Source', 'view-source.pl'],
 	       ];
 
-my $use_column_names = 1;
 
 my $tree = Tree::Numbered::Tools->readArray(
 					    arrayref         => $arrayref,
-					    use_column_names => $use_column_names,
+					    use_column_names => 1,
 					   );
+
+# Print column names
+print "\nArray column names (omitting 'serial' and 'parent'):\n", join(' ', $tree->getColumnNames()), "\n";
 
 # Print the tree
 foreach ($tree->listChildNumbers) {
-  print $_, " ", join(' -- ', $tree->follow($_,"name")), "\n";
+  print $_, " ", join(' -- ', $tree->follow($_,"Name")), "\n";
 }
 
 # # Print details about a node
  print "\nDetails about node 7:\n";
-my @name7 = $tree->follow(7,'name');
-my @url7 = $tree->follow(7,'url');
+my @s7 = $tree->follow(7,'serial');
+my @name7 = $tree->follow(7,'Name');
+my @url7 = $tree->follow(7,'URL');
+print  "serial: ", pop(@s7), "\n";
 print  "Name: ", pop(@name7), "\n";
 print  "URL: ", pop(@url7), "\n";

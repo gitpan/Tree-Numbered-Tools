@@ -2,9 +2,12 @@
 # For details, check the Tree::Numbered::Tools documentation.
 # Comment out the 'DROP TABLE ...' statement if you don't want to delete an existing table.
 # Usage of this output:
-# Redirect this output to a file called for example tree.sql, then run from the command line:
-# mysql -u root -pmysqlpassword mysqldatabase < tree.sql
+# Redirect this output to a file called, for example, 'insert-into-mysql.sql':
+# outputSQL.pl mysql > insert-into-mysql.sql
+# Then run from the command line (assumes that the database 'test' already exists):
+# mysql -u root -pmysqlpassword test < insert-into-mysql.sql
 #
+
 DROP TABLE IF EXISTS treetest;
 CREATE TABLE treetest (
   `serial` int(11) NOT NULL auto_increment,
@@ -54,15 +57,15 @@ VALUES (
 );
 INSERT INTO `treetest` ( `serial`, `parent`, `name`, `url`, `color`, `permission`, `visible` )
 VALUES (
-  10, 2, 'Close', 'file-close.pl', '#000000', '', ''
+  10, 2, 'Close', 'file-close.pl', '#000000', 'admin''s', ''
 );
 INSERT INTO `treetest` ( `serial`, `parent`, `name`, `url`, `color`, `permission`, `visible` )
 VALUES (
-  11, 2, 'Exit', 'file-exit.pl', '#000000', '', ''
+  11, 2, 'Exit', 'file-exit.pl', '#000000', 'that''s mine', ''
 );
 INSERT INTO `treetest` ( `serial`, `parent`, `name`, `url`, `color`, `permission`, `visible` )
 VALUES (
-  12, 1, 'Edit', 'edit.pl', '#000000', '', ''
+  12, 1, 'Edit', 'edit.pl', '#000000', 'this value is "quoted"', ''
 );
 INSERT INTO `treetest` ( `serial`, `parent`, `name`, `url`, `color`, `permission`, `visible` )
 VALUES (

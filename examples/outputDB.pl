@@ -3,7 +3,7 @@ use strict;
 use DBI;
 use Tree::Numbered::Tools;
 
-# Demo for the convertDB2Array() method, converts database reords (connected to MySQL or PostgreSQL) into a tree structure in the text file format.
+# Demo for the outputDB() method using a PgSQL database.
 
 # Help message
 sub usage
@@ -57,16 +57,22 @@ SWITCH: for ($dbs) {
 my $dbh = DBI->connect($dbh_string, $user, $password) or die "DBI error: DBI->errstr\n";
 
 # The source
-my $table = 'treetest';
+my $filename = 'tree.txt';
+my $use_column_names = 1;
 
-# The output
-my $first_indent     = 2;
-my $level_indent     = 2;
-my $column_indent    = 2;
-print Tree::Numbered::Tools->convertDB2File(
-					    dbh           => $dbh,
-					    table         => $table,
-					    first_indent  => $first_indent,
-					    level_indent  => $level_indent,
-					    column_indent => $column_indent,
-					   );
+# Create the tree object
+my $tree = Tree::Numbered::Tools->readFile(
+					   filename         => $filename,
+					   use_column_names => $use_column_names,
+					 );
+
+# Create the database table and indexes, insert records.
+# The SQL syntax used depends on the database driver used.
+# Currently only MySQL and PgSQL are supported/tested.
+
+my $table = 'treetest';
+my $success = $tree->outputDB(
+			      dbh   => $dbh,
+			      table => $table,
+			      drop  => 1,
+			     );

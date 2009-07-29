@@ -1,9 +1,26 @@
+Tree-Numbered-Tools version 1.02
+================================
+
+Tree::Numbered::Tools - Perl module to create tree objects using different sources.
+
+INSTALLATION
+
+To install this module type the following:
+
+   perl Makefile.PL
+   make
+   make test
+   make install
+
+DEPENDENCIES
+
 # Required modules:           Tree::Numbered
-# Highly recommended modules: DBI, DBD::mysql and/or DBD::Pg
+# Highly recommended modules: DBI, DBD::mysql, DBD::Pg
 
-# Install as usual:
+COPYRIGHT AND LICENCE
 
-perl Makefile.PL
-make
-make test
-make install
+Copyright (C) 2004-2009 by Johan Kuuse
+
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself, either Perl version 5.8.9 or,
+at your option, any later version of Perl 5 you may have available.

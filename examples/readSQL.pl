@@ -3,8 +3,6 @@ use strict;
 use DBI;
 use Tree::Numbered::Tools;
 
-# Demo for the convertDB2Array() method, converts database reords (connected to MySQL or PostgreSQL) into a tree structure in the text file format.
-
 # Help message
 sub usage
   {
@@ -56,17 +54,29 @@ SWITCH: for ($dbs) {
 # The DB handle
 my $dbh = DBI->connect($dbh_string, $user, $password) or die "DBI error: DBI->errstr\n";
 
-# The source
-my $table = 'treetest';
+# The SQL statement
+# Easy mapping to columns using the SQL 'AS' syntax. (The column 'serial' must always exist and be lower case, though.)
+my $sql = "SELECT serial, parent AS 'Parent', name AS 'Name', url as 'URL', color AS 'Color', permission AS 'Permission', visible as 'Visible' FROM treetest ORDER BY Serial";
 
-# The output
-my $first_indent     = 2;
-my $level_indent     = 2;
-my $column_indent    = 2;
-print Tree::Numbered::Tools->convertDB2File(
-					    dbh           => $dbh,
-					    table         => $table,
-					    first_indent  => $first_indent,
-					    level_indent  => $level_indent,
-					    column_indent => $column_indent,
-					   );
+# Get the tree
+my $tree = Tree::Numbered::Tools->readSQL(
+					  dbh => $dbh,
+					  sql => $sql,
+					 );
+
+# Print the tree
+print "Nodes:\n";
+foreach ($tree->listChildNumbers) {
+  print $_, " ", join(' -- ', $tree->follow($_,"Name")), "\n";
+}
+
+# Print column names
+print "\nSQL statement columns (omitting 'serial' and 'parent'):\n", join(' ', $tree->getColumnNames()), "\n";
+
+# # # Print details about a node
+print "\nDetails about node 7:\n";
+my @name7 = $tree->follow(7,'Name');
+my @url7 = $tree->follow(7,'URL');
+print  "Name: ", pop(@name7), "\n";
+print  "URL: ", pop(@url7), "\n";
+
