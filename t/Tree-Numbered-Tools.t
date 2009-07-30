@@ -1,4 +1,4 @@
-# Test script for Tree::Numbered::Tools-1.02.
+# Test script for Tree::Numbered::Tools
 # Tested with Perl 5.8.9 on FreeBSD 7.2.
 
 # Before `make install' is performed this script should be runnable with `make test'. 

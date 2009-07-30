@@ -39,6 +39,7 @@ examples/readFile-incorrectly-indented.pl
 examples/readFile-no-column-names.pl
 examples/readFile-simple.pl
 examples/readFile.pl
+examples/readSQL-newline.pl
 examples/readSQL.pl
 examples/select-mysql.sql
 examples/select-pgsql.sql

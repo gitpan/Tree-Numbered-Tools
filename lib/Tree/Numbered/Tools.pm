@@ -1,6 +1,6 @@
 package Tree::Numbered::Tools;
 
-use 5.008009;
+use 5.006000;
 use strict;
 use warnings;
 
@@ -29,7 +29,7 @@ our @EXPORT = qw(
 	
 );
 
-our $VERSION = '1.02';
+our $VERSION = '1.03';
 
 
 # - Generate a tree object from different sources: database table, text file, SQL statement, Perl array.
@@ -1458,6 +1458,14 @@ sub _sql_alias_quoted {
   # Solution: Text::ParseWords takes care of not splitting quoted words. Nevertheless, quotes have to be added, as Text::ParseWords removes them.
   # The concern about aliases with spaces is to make this sub generic.
   # Aliases with spaces will never occur generating a tree, as the aliases corresponds to the field names, which can contain spaces, so aliases with spaces will not work with trees.
+
+  # Bugfix in 1.03:
+  # Warning message when SQL string contains trailing newline(s)
+  ### chomp $sql; BAD SOLUTION: works ONLY for ones single trailing newline, not for two newlines.
+  # Better solution: trim leading and trailing whitespace characters [ \t\n\r\f];
+  $sql =~ s/^\s+//;
+  $sql =~ s/\s+$//;
+
   my @words = &parse_line('\s+', 0, $sql);
   for (my $i = 0; $i < @words; $i++) {
     # If reserved word AS, quote the following word
@@ -1742,7 +1750,7 @@ COMMENT
  The code was written more to be useful as a tool, rather than to be compact, fast and clean.
  Please report through CPAN:
  http://rt.cpan.org/NoAuth/Bugs.html?Dist=Tree-Numbered-Tools
- or send mail to bug-Tree-Numbered-Tools@rt.cpan.org 
+ or send mail to bug-Tree-Numbered-Tools@rt.cpan.org
 
  Incorrectly using $use_column_names=1 together with a source where column names are *not* specified will cause unpredictable results, probably a run-time error.
  The same is true for incorrect usage of $use_column_names=0 together with a source where column names *are* specified.
@@ -1767,10 +1775,11 @@ Johan Kuuse, E<lt>johan@kuu.seE<gt>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright 2004-2009 by Johan Kuuse
+Copyright (C) 2004-2009 by Johan Kuuse
 
-This module is free software; you can redistribute it and/or modify
-it under the same terms as Perl itself.
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself, either Perl version 5.8.9 or,
+at your option, any later version of Perl 5 you may have available.
 
 =cut
 1;

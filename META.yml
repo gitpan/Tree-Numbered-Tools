@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               Tree-Numbered-Tools
-version:            1.02
+version:            1.03
 abstract:           Perl module to create tree objects using different sources.
 author:
     - Johan Kuuse <kuuse@isc.freebsd.org>
@@ -8,7 +8,8 @@ license:            unknown
 distribution_type:  module
 configure_requires:
     ExtUtils::MakeMaker:  0
-requires:  {}
+requires:
+    Javascript::Menu:  2.02
 no_index:
     directory:
         - t
