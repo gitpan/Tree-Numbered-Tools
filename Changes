@@ -1,5 +1,12 @@
 Revision history for Perl extension Tree::Numbered::Tools.
 
+1.04  Sat Jan 08 22:34:34 2011
+	- Added prerequisites for IO::Scalar in Makefile.PL, as the CPAN tests fail on several platforms if this module isn't included:
+          Before:
+            PREREQ_PM => {'Javascript::Menu' => 2.02,},
+          After:
+            PREREQ_PM => {'Javascript::Menu' => 2.02, 'IO::Scalar' => '0',},
+
 1.03  Thu Jul 30 12:06:34 2009
 	- Changed required Perl version from 5.008009 (introduced by mistake in 1.02) to 5.006000 (which should be a reasonable required version, including most of today's Perl users). Thanks to Daniel Higgins for pointing this out.
 	- BUG: The addition of "use warnings" in 1.02 causes one to show up on line 1480 if your sql string begin or end with a newline.

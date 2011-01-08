@@ -1,4 +1,4 @@
-Tree-Numbered-Tools version 1.03
+Tree-Numbered-Tools version 1.04
 ================================
 
 Tree::Numbered::Tools - Perl module to create tree objects using different sources.
@@ -14,12 +14,12 @@ To install this module type the following:
 
 DEPENDENCIES
 
-# Required modules:           Tree::Numbered
+# Required modules:           Tree::Numbered, Javascript::Menu, IO::Scalar
 # Highly recommended modules: DBI, DBD::mysql, DBD::Pg
 
 COPYRIGHT AND LICENCE
 
-Copyright (C) 2004-2009 by Johan Kuuse
+Copyright (C) 2004-2011 by Johan Kuuse
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself, either Perl version 5.8.9 or,

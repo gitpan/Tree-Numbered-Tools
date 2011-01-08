@@ -29,7 +29,7 @@ our @EXPORT = qw(
 	
 );
 
-our $VERSION = '1.03';
+our $VERSION = '1.04';
 
 
 # - Generate a tree object from different sources: database table, text file, SQL statement, Perl array.
